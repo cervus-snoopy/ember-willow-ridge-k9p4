@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Radar — fitted size curve, tested out of sample, every farm plan netted</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<noscript><p style="padding:20px;font-family:system-ui">Token Radar needs JavaScript: the board is rendered from the snapshot data shipped beside this page.</p></noscript>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">◉</span>
+      <div>
+        <h1>Token Radar</h1>
+        <p class="tag">Every protocol that records no token yet, priced as expected value off a size curve fitted on the tokens that already trade — and tested blind.</p>
+      </div>
+    </div>
+    <dl class="stats" id="stats"></dl>
+  </div>
+  <div class="wrap">
+    <section class="oos" id="oos" aria-label="Out-of-sample validation">
+      <div class="oos-cell"><span class="oos-num" id="oos-loo">—</span><span class="oos-label">LOO geo factor (n=109)</span></div>
+      <div class="oos-cell"><span class="oos-num" id="oos-ts">—</span><span class="oos-label">Time-split geo factor</span></div>
+      <div class="oos-cell"><span class="oos-num" id="oos-boot">—</span><span class="oos-label">Bootstrap top-10 keeps</span></div>
+      <div class="oos-cell"><span class="oos-num" id="oos-base">—</span><span class="oos-label">Median-model LOO (old)</span></div>
+      <div class="oos-cell"><span class="oos-num" id="oos-band">—</span><span class="oos-label">Farm band (10^σ, 65.1%)</span></div>
+      <div class="oos-cell"><span class="oos-num" id="oos-odds">—</span><span class="oos-label">Launch odds, held out</span></div>
+    </section>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="tabs" aria-label="Views">
+    <button type="button" class="tab is-active" data-tab="board" id="tab-board">Ranked board</button>
+    <button type="button" class="tab" data-tab="live" id="tab-live">Already trading</button>
+    <button type="button" class="tab" data-tab="method" id="tab-method">Model &amp; fit</button>
+  </nav>
+
+  <section id="view-board" class="view is-active" aria-label="Ranked board">
+    <section class="cover" aria-label="Cover: census, formula, ablation, fit">
+      <div class="census" id="census"></div>
+      <p class="formula" id="formula"></p>
+      <div class="covergrid">
+        <div class="ablation">
+          <h2>Each term earns its place</h2>
+          <div id="ablation"></div>
+          <p class="fine">Leave-one-out geo factor, n=109; every step refits inside every fold. The 0.85 discount is an assumption, not a fit.</p>
+        </div>
+        <div class="coverscat">
+          <h2>The fit, plotted</h2>
+          <div id="fit-scatter"></div>
+          <div id="fit-legend" class="legend"></div>
+        </div>
+      </div>
+    </section>
+    <div class="whatif" id="whatif">
+      <span class="wi-label">What if:</span>
+      <label>Deposit <select id="wi-deposit"><option value="0">Plan capital</option><option value="1000">$1,000</option><option value="5000">$5,000</option><option value="25000">$25,000</option></select></label>
+      <label>Farmer share <select id="wi-share"><option value="1">0.0025%</option><option value="2">0.005%</option><option value="4">0.01%</option></select></label>
+      <label>T-bill <select id="wi-tbill"><option value="0">0%</option><option value="4" selected>4%</option><option value="8">8%</option></select></label>
+      <span id="wi-summary"></span>
+    </div>
+    <div class="toolbar">
+      <label class="field grow">
+        <span class="sr">Search protocols</span>
+        <input id="q" type="search" placeholder="Search a protocol…" autocomplete="off">
+      </label>
+      <label class="field">
+        <span class="sr">Category</span>
+        <select id="category"><option value="all">All categories</option></select>
+      </label>
+      <label class="field">
+        <span class="sr">Chain</span>
+        <select id="chain"><option value="all">All chains</option></select>
+      </label>
+      <label class="field">
+        <span class="sr">Verdict</span>
+        <select id="verdict">
+          <option value="all">All verdicts</option>
+          <option value="FARM">FARM only</option>
+          <option value="THIN">THIN only</option>
+          <option value="SKIP">SKIP only</option>
+        </select>
+      </label>
+      <label class="check"><input id="watchlist" type="checkbox"> Watchlist only</label>
+      <label class="field">
+        <span class="sr">Sort</span>
+        <select id="sort">
+          <option value="implied">Sort: implied value</option>
+          <option value="tvl">Sort: TVL</option>
+          <option value="growth">Sort: 7-day change</option>
+          <option value="age">Sort: age</option>
+          <option value="net">Sort: farm net $</option>
+          <option value="odds">Sort: launch odds</option>
+          <option value="readiness">Sort: readiness</option>
+        </select>
+      </label>
+    </div>
+    <p class="count" id="count" aria-live="polite"></p>
+    <div class="tablewrap">
+      <table id="board">
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>Protocol</th>
+            <th>Category</th>
+            <th class="num">TVL</th>
+            <th class="num">7d</th>
+            <th class="num">Age</th>
+            <th class="num">Implied value</th>
+            <th class="num">Odds</th>
+            <th>Range P25–P75</th>
+            <th>Verdict</th>
+            <th class="num">Net $</th>
+            <th class="num">Net/h</th>
+            <th class="num">Break-even</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="hint">Click any row for the protocol's detail: the model's own arithmetic, its netted farm plan, and its facts. Implied value is the expected value — the value if the token launches, times the launch odds. The range is the local P25–P75 band from out-of-sample miss near the row's TVL.</p>
+  </section>
+
+  <section id="view-live" class="view" aria-label="Already trading" hidden>
+    <p class="lede">These protocols already trade. The board shows the market's own value for them — never an implied one — so the ranking is never mixed with live prices.</p>
+    <div class="tablewrap">
+      <table id="live-table">
+        <thead>
+          <tr><th>Protocol</th><th>Category</th><th>Chains</th><th class="num">TVL</th><th class="num">Market cap</th><th class="num">7d</th></tr>
+        </thead>
+        <tbody id="live-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="view-method" class="view" aria-label="Model and fit" hidden>
+    <div class="method" id="method"></div>
+    <h2>Calibration — out of sample, against the baselines</h2>
+    <div class="tablewrap">
+      <table id="cal-table">
+        <thead>
+          <tr><th>Check</th><th class="num">n</th><th class="num">Geo factor</th><th class="num">MdAPE</th><th class="num">Spearman</th><th class="num">Within 2x</th></tr>
+        </thead>
+        <tbody id="cal-rows"></tbody>
+      </table>
+    </div>
+    <h2>The fit, plotted</h2>
+    <p class="lede">Every kept comp with the fitted curve, the dropped live points hollow, and the board's top 25 candidates on the same axes. Flagged points sit more than 0.5 dex from the curve.</p>
+    <div id="fit-scatter-method"></div>
+  </section>
+</main>
+
+<aside class="drawer" id="drawer" aria-label="Protocol detail" hidden>
+  <button type="button" class="drawer-close" id="drawer-close" aria-label="Close detail">✕</button>
+  <div id="detail"></div>
+</aside>
+
+<footer class="wrap foot">
+  <p>Snapshot <span id="foot-asof"></span> · source <span id="foot-source"></span> · model <span id="foot-model"></span>. The board ranks protocols that record no token; a protocol is called pre-token only when it records no market cap, no Gecko id and no symbol. Nothing here is investment advice — farm plans are steps to follow, not promises of a reward. Method, validation and counts: dashboard/00-proof.md.</p>
+</footer>
+
+<script src="../data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
